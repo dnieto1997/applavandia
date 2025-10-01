@@ -20,6 +20,7 @@ import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from './_layout';
+import { subirFotoEvidencia, eliminarFotoEvidencia, obtenerUrlFoto } from '../services/evidenciasService';
 
 const COLORS = {
   primary: '#1E3A8A',        // Azul corporativo más elegante
@@ -64,7 +65,11 @@ interface FormularioData {
     [key: string]: {
       cumple: boolean;
       observaciones: string;
-      fotos: string[]; // URIs de las fotos
+      fotos: {
+        uri: string;      // URI local temporal
+        url: string;      // URL del servidor
+        ruta: string;     // Ruta en el servidor para eliminar
+      }[];
     };
   };
   
@@ -634,7 +639,7 @@ export default function FormularioActaInicio() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const uri = result.assets[0].uri;
-        agregarFotoArea(area, uri);
+        await agregarFotoArea(area, uri);
       }
     } catch (error) {
       console.error('Error al tomar foto:', error);
@@ -663,7 +668,7 @@ export default function FormularioActaInicio() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const uri = result.assets[0].uri;
-        agregarFotoArea(area, uri);
+        await agregarFotoArea(area, uri);
       }
     } catch (error) {
       console.error('Error al seleccionar foto:', error);
@@ -671,22 +676,47 @@ export default function FormularioActaInicio() {
     }
   };
 
-  // Función para agregar foto al área
-  const agregarFotoArea = (area: string, uri: string) => {
-    setFormData(prev => ({
-      ...prev,
-      areas: {
-        ...prev.areas,
-        [area]: {
-          ...prev.areas[area],
-          fotos: [...(prev.areas[area]?.fotos || []), uri]
-        }
+  // Función para agregar foto al área (ahora sube al servidor)
+  const agregarFotoArea = async (area: string, uri: string) => {
+    try {
+      // Mostrar indicador de carga
+      Alert.alert('Subiendo foto', 'Espera un momento...');
+
+      // Subir foto al servidor
+      const resultado = await subirFotoEvidencia(uri, area);
+
+      if (resultado.success && resultado.url && resultado.ruta) {
+        // Agregar foto al estado con la URL del servidor
+        setFormData(prev => ({
+          ...prev,
+          areas: {
+            ...prev.areas,
+            [area]: {
+              ...prev.areas[area],
+              fotos: [
+                ...(prev.areas[area]?.fotos || []),
+                {
+                  uri: uri,           // URI local temporal
+                  url: resultado.url!, // URL del servidor
+                  ruta: resultado.ruta! // Ruta para eliminar
+                }
+              ]
+            }
+          }
+        }));
+
+        Alert.alert('Éxito', 'Foto subida correctamente');
+      } else {
+        Alert.alert('Error', resultado.error || 'No se pudo subir la foto');
       }
-    }));
+    } catch (error) {
+      console.error('Error al agregar foto:', error);
+      Alert.alert('Error', 'No se pudo agregar la foto');
+    }
   };
 
-  // Función para eliminar foto
-  const eliminarFoto = (area: string, index: number) => {
+  // Función para eliminar foto (ahora elimina del servidor)
+  const eliminarFoto = async (area: string, index: number) => {
     Alert.alert(
       'Eliminar foto',
       '¿Estás seguro de eliminar esta foto?',
@@ -695,17 +725,35 @@ export default function FormularioActaInicio() {
         {
           text: 'Eliminar',
           style: 'destructive',
-          onPress: () => {
-            setFormData(prev => ({
-              ...prev,
-              areas: {
-                ...prev.areas,
-                [area]: {
-                  ...prev.areas[area],
-                  fotos: prev.areas[area].fotos.filter((_, i) => i !== index)
+          onPress: async () => {
+            try {
+              const foto = formData.areas[area].fotos[index];
+              
+              // Eliminar del servidor si tiene ruta
+              if (foto.ruta) {
+                const resultado = await eliminarFotoEvidencia(foto.ruta);
+                if (!resultado.success) {
+                  console.warn('No se pudo eliminar del servidor:', resultado.error);
                 }
               }
-            }));
+
+              // Eliminar del estado local
+              setFormData(prev => ({
+                ...prev,
+                areas: {
+                  ...prev.areas,
+                  [area]: {
+                    ...prev.areas[area],
+                    fotos: prev.areas[area].fotos.filter((_, i) => i !== index)
+                  }
+                }
+              }));
+
+              Alert.alert('Éxito', 'Foto eliminada correctamente');
+            } catch (error) {
+              console.error('Error al eliminar foto:', error);
+              Alert.alert('Error', 'No se pudo eliminar la foto');
+            }
           }
         }
       ]
@@ -1065,9 +1113,12 @@ export default function FormularioActaInicio() {
                     📷 Fotos ({formData.areas[area].fotos.length})
                   </Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.fotosScroll}>
-                    {formData.areas[area].fotos.map((uri, index) => (
+                    {formData.areas[area].fotos.map((foto, index) => (
                       <View key={index} style={styles.fotoItem}>
-                        <Image source={{ uri }} style={styles.fotoPreview} />
+                        <Image 
+                          source={{ uri: foto.url || foto.uri }} 
+                          style={styles.fotoPreview} 
+                        />
                         {!esVisualizacion && (
                           <TouchableOpacity
                             style={styles.deleteFotoButton}
