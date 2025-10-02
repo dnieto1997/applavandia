@@ -348,6 +348,40 @@ export default function FormularioActaInicio() {
           const formulario = response.data.data;
           console.log('📋 Datos del formulario:', formulario);
           
+          // Normalizar áreas con fotos
+          const areasNormalizadas: any = {};
+          if (formulario.areas) {
+            Object.keys(formulario.areas).forEach(areaKey => {
+              const area = formulario.areas[areaKey];
+              areasNormalizadas[areaKey] = {
+                cumple: area.cumple || false,
+                observaciones: area.observaciones || '',
+                fotos: Array.isArray(area.fotos) 
+                  ? area.fotos.map((foto: any) => {
+                      // Si la foto ya es un objeto con uri, url, ruta, dejarlo como está
+                      if (typeof foto === 'object' && foto.url) {
+                        return foto;
+                      }
+                      // Si es un string (URL), convertirlo a objeto
+                      if (typeof foto === 'string') {
+                        return {
+                          uri: foto,
+                          url: foto,
+                          ruta: foto.replace('https://operaciones.lavianda.com.co/storage/', '')
+                        };
+                      }
+                      return foto;
+                    })
+                  : []
+              };
+            });
+          } else {
+            // Si no hay áreas, crear estructura vacía
+            AREAS_PREDEFINIDAS.forEach(area => {
+              areasNormalizadas[area] = { cumple: false, observaciones: '', fotos: [] };
+            });
+          }
+          
           // Cargar todos los datos del formulario
           setFormData({
             consecutivo: formulario.consecutivo || '',
@@ -360,10 +394,7 @@ export default function FormularioActaInicio() {
             fecha: formulario.fecha || '',
             hora_inicio: formulario.hora_inicio || '',
             hora_fin: formulario.hora_fin || '',
-            areas: formulario.areas || AREAS_PREDEFINIDAS.reduce((acc, area) => ({
-              ...acc,
-              [area]: { cumple: false, observaciones: '', fotos: [] }
-            }), {}),
+            areas: areasNormalizadas,
             inventario: formulario.inventario || [
               { maquinaria_equipo: '', cantidad: '', descripcion_estado: '' }
             ],
@@ -1140,24 +1171,29 @@ export default function FormularioActaInicio() {
                     📷 Fotos ({formData.areas[area].fotos.length})
                   </Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.fotosScroll}>
-                    {formData.areas[area].fotos.map((foto, index) => (
-                      <View key={index} style={styles.fotoItem}>
-                        <TouchableOpacity onPress={() => abrirFotoEnModal(foto.url || foto.uri)}>
-                          <Image 
-                            source={{ uri: foto.url || foto.uri }} 
-                            style={styles.fotoPreview} 
-                          />
-                        </TouchableOpacity>
-                        {!esVisualizacion && (
-                          <TouchableOpacity
-                            style={styles.deleteFotoButton}
-                            onPress={() => eliminarFoto(area, index)}
-                          >
-                            <Ionicons name="close-circle" size={24} color={COLORS.danger} />
+                    {formData.areas[area].fotos.map((foto, index) => {
+                      const fotoUrl = foto.url || foto.uri;
+                      console.log('🖼️ Mostrando foto:', fotoUrl);
+                      return (
+                        <View key={index} style={styles.fotoItem}>
+                          <TouchableOpacity onPress={() => abrirFotoEnModal(fotoUrl)}>
+                            <Image 
+                              source={{ uri: fotoUrl }} 
+                              style={styles.fotoPreview}
+                              onError={(error) => console.error('❌ Error cargando imagen:', error.nativeEvent.error)}
+                            />
                           </TouchableOpacity>
-                        )}
-                      </View>
-                    ))}
+                          {!esVisualizacion && (
+                            <TouchableOpacity
+                              style={styles.deleteFotoButton}
+                              onPress={() => eliminarFoto(area, index)}
+                            >
+                              <Ionicons name="close-circle" size={24} color={COLORS.danger} />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      );
+                    })}
                   </ScrollView>
                 </View>
               )}

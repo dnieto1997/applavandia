@@ -56,16 +56,6 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="tracking"
-        options={{ 
-          title: 'Recorrido',
-          tabBarIcon: ({ color, size = 24 }) => (
-            <Ionicons name="navigate-outline" size={size} color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
         name="operaciones"
         options={{ 
           title: 'Operaciones',
@@ -105,6 +95,14 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size = 24 }) => (
             <Ionicons name="people-outline" size={size} color={color} />
           ),
+        }}
+      />
+
+      {/* Ocultar admin-map-new del menú de tabs */}
+      <Tabs.Screen
+        name="admin-map-new"
+        options={{ 
+          href: null, // Ocultar completamente del menú
         }}
       />
     </Tabs>
