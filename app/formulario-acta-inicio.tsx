@@ -105,6 +105,31 @@ const AREAS_PREDEFINIDAS = [
   'AVISOS',
 ];
 
+// Función auxiliar para normalizar URLs de fotos (fuera del componente para mejor performance)
+const normalizarUrlFoto = (url: string): string => {
+  if (!url) return '';
+  
+  // Si ya es una URL válida completa, devolverla
+  if (url.startsWith('https://operaciones.lavianda.com.co/')) {
+    return url;
+  }
+  
+  // Limpiar URL malformada
+  let urlLimpia = url
+    .replace(/^http:\/\//, 'https://')  // Convertir http:// a https://
+    .replace(/^http:/, 'https://')       // Corregir http: sin //
+    .replace(/^https:([^\/])/, 'https://$1')  // Agregar // si falta después de https:
+    .replace('operaciones.lavianda.com/', 'operaciones.lavianda.com.co/'); // Corregir dominio
+  
+  // Si no tiene protocolo, agregarlo
+  if (!urlLimpia.startsWith('http://') && !urlLimpia.startsWith('https://')) {
+    urlLimpia = `https://operaciones.lavianda.com.co/storage/${urlLimpia}`;
+  }
+  
+  console.log('🔧 URL normalizada:', { original: url, normalizada: urlLimpia });
+  return urlLimpia;
+};
+
 export default function FormularioActaInicio() {
   const { user } = useAuth();
   const router = useRouter();
@@ -348,31 +373,6 @@ export default function FormularioActaInicio() {
         if (response.data?.data) {
           const formulario = response.data.data;
           console.log('📋 Datos del formulario:', formulario);
-          
-          // Función para normalizar URL de foto
-          const normalizarUrlFoto = (url: string): string => {
-            if (!url) return '';
-            
-            // Si ya es una URL válida completa, devolverla
-            if (url.startsWith('https://operaciones.lavianda.com.co/')) {
-              return url;
-            }
-            
-            // Limpiar URL malformada
-            let urlLimpia = url
-              .replace(/^http:\/\//, 'https://')  // Convertir http a https
-              .replace(/^http:/, 'https://')       // Corregir http: sin //
-              .replace(/^https:([^\/])/, 'https://$1')  // Agregar // si falta
-              .replace('operaciones.lavianda.com/', 'operaciones.lavianda.com.co/'); // Corregir dominio
-            
-            // Si no tiene protocolo, agregarlo
-            if (!urlLimpia.startsWith('http://') && !urlLimpia.startsWith('https://')) {
-              urlLimpia = `https://operaciones.lavianda.com.co/storage/${urlLimpia}`;
-            }
-            
-            console.log('🔧 URL normalizada:', { original: url, normalizada: urlLimpia });
-            return urlLimpia;
-          };
           
           // Normalizar áreas con fotos
           const areasNormalizadas: any = {};
@@ -1204,11 +1204,13 @@ export default function FormularioActaInicio() {
                   </Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.fotosScroll}>
                     {formData.areas[area].fotos.map((foto, index) => {
-                      const fotoUrl = foto.url || foto.uri;
+                      // Normalizar la URL antes de usarla
+                      const fotoUrlOriginal = foto.url || foto.uri;
+                      const fotoUrl = normalizarUrlFoto(fotoUrlOriginal);
                       const imageKey = `${area}-${index}`;
                       const hasError = imageErrors[imageKey];
                       
-                      console.log('🖼️ Mostrando foto:', fotoUrl);
+                      console.log('🖼️ Mostrando foto normalizada:', fotoUrl);
                       
                       return (
                         <View key={index} style={styles.fotoItem}>
