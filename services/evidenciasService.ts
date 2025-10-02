@@ -1,5 +1,4 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE = 'https://operaciones.lavianda.com.co/api';
 
@@ -12,11 +11,11 @@ const API_BASE = 'https://operaciones.lavianda.com.co/api';
  */
 export const subirFotoEvidencia = async (
   uri: string,
+  token: string,
   area?: string,
   formularioId?: number
 ): Promise<{ success: boolean; url?: string; ruta?: string; error?: string }> => {
   try {
-    const token = await AsyncStorage.getItem('token');
     if (!token) {
       throw new Error('No hay token de autenticación');
     }
@@ -86,10 +85,10 @@ export const subirFotoEvidencia = async (
  * Eliminar una foto de evidencia del servidor
  */
 export const eliminarFotoEvidencia = async (
-  ruta: string
+  ruta: string,
+  token: string
 ): Promise<{ success: boolean; error?: string }> => {
   try {
-    const token = await AsyncStorage.getItem('token');
     if (!token) {
       throw new Error('No hay token de autenticación');
     }

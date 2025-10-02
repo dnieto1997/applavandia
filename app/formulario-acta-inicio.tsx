@@ -679,11 +679,16 @@ export default function FormularioActaInicio() {
   // Función para agregar foto al área (ahora sube al servidor)
   const agregarFotoArea = async (area: string, uri: string) => {
     try {
+      if (!user?.token) {
+        Alert.alert('Error', 'No estás autenticado. Por favor inicia sesión.');
+        return;
+      }
+
       // Mostrar indicador de carga
       Alert.alert('Subiendo foto', 'Espera un momento...');
 
       // Subir foto al servidor
-      const resultado = await subirFotoEvidencia(uri, area);
+      const resultado = await subirFotoEvidencia(uri, user.token, area);
 
       if (resultado.success && resultado.url && resultado.ruta) {
         // Agregar foto al estado con la URL del servidor
@@ -727,11 +732,16 @@ export default function FormularioActaInicio() {
           style: 'destructive',
           onPress: async () => {
             try {
+              if (!user?.token) {
+                Alert.alert('Error', 'No estás autenticado.');
+                return;
+              }
+
               const foto = formData.areas[area].fotos[index];
               
               // Eliminar del servidor si tiene ruta
               if (foto.ruta) {
-                const resultado = await eliminarFotoEvidencia(foto.ruta);
+                const resultado = await eliminarFotoEvidencia(foto.ruta, user.token);
                 if (!resultado.success) {
                   console.warn('No se pudo eliminar del servidor:', resultado.error);
                 }
