@@ -17,12 +17,7 @@ interface UserLocation {
   lastActivity: string;
 }
 
-export type LocationType =
-  | 'login'
-  | 'tracking'
-  | 'logout'
-  | 'form_start'
-  | 'form_end';
+type LocationType = 'login' | 'tracking' | 'logout' | 'form_start' | 'form_end';
 
 interface LocationPoint {
   latitude: number;
@@ -33,7 +28,7 @@ interface LocationPoint {
 }
 
 interface SessionRoute {
-  id: string; // se mantiene string ya que sessionId es string
+  id: string;
   userId: number;
   userName: string;
   startTime: string;
@@ -57,7 +52,6 @@ interface FormMarker {
 interface TrackingDataResponse {
   success: boolean;
   data: LocationPoint[];
-  total?: number;
 }
 
 interface UseRealTimeTrackingReturn {
@@ -70,11 +64,12 @@ interface UseRealTimeTrackingReturn {
   refreshData: () => Promise<void>;
   connectWebSocket: () => Promise<void>;
   disconnectWebSocket: () => void;
-  fetchUserLocationsByDate: (userId: number,date:any) => Promise<void>;
-  fetchFormMarkers: (userId: number,date:any) => Promise<void>;
+  fetchUserLocationsByDate: (userId: number, date: string) => Promise<void>;
+  fetchFormMarkers: (userId: number, date: string) => Promise<void>;
+  startLiveTracking: (userId: number) => Promise<void>;
 }
 
-// --- CONFIGURACIÓN ---
+// --- CONFIG ---
 const API_BASE = 'https://operaciones.lavianda.com.co/api';
 
 export const useRealTimeTracking = (): UseRealTimeTrackingReturn => {
@@ -84,98 +79,92 @@ export const useRealTimeTracking = (): UseRealTimeTrackingReturn => {
   const [selectedUserRoute, setSelectedUserRoute] = useState<LocationPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
 
-  // --- API ---
+  // --- TOKEN ---
+  const initToken = useCallback(async () => {
+    if (!token) {
+      const storedToken = await AsyncStorage.getItem('authToken');
+      setToken(storedToken);
+    }
+  }, [token]);
+
+  // --- API CALLS ---
   const fetchActiveUsers = useCallback(async () => {
-    try {
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) return;
+    await initToken();
+    if (!token) return;
 
-      const response = await axios.get(`${API_BASE}/admin/active-users-locations`, {
+    try {
+      const { data } = await axios.get(`${API_BASE}/admin/active-users-locations`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (response.data?.success) {
-        setUserLocations(response.data.users || []);
-      }
-    } catch (error) {
-      console.error('❌ Error al obtener usuarios activos:', error);
+      if (data?.success) setUserLocations(data.users || []);
+    } catch (err) {
+      console.error('❌ fetchActiveUsers', err);
     }
-  }, []);
+  }, [token, initToken]);
 
   const fetchSessionRoutes = useCallback(async () => {
-    try {
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) return;
+    await initToken();
+    if (!token) return;
 
-      const response = await axios.get(`${API_BASE}/admin/tracking/active-sessions`, {
+    try {
+      const { data } = await axios.get(`${API_BASE}/admin/tracking/active-sessions`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (response.data?.success) {
-        setSessionRoutes(response.data.sessions || []);
-      }
-    } catch (error) {
-      console.error('❌ Error al obtener rutas activas:', error);
+      if (data?.success) setSessionRoutes(data.sessions || []);
+    } catch (err) {
+      console.error('❌ fetchSessionRoutes', err);
     }
-  }, []);
+  }, [token, initToken]);
 
-  const fetchFormMarkers = useCallback(async (userId: number,date:any) => {
+  const fetchFormMarkers = useCallback(async (userId: number, date: string) => {
+    await initToken();
+    if (!token) return;
+
     try {
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) return;
-
-     
-      const response = await axios.get(`${API_BASE}/admin/forms-locations?user_id=${userId}&date=${date}`, {
+      const { data } = await axios.get(`${API_BASE}/admin/forms-locations?user_id=${userId}&date=${date}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (response.data?.success) {
-        setFormMarkers(response.data.forms || []);
-      }
-    } catch (error) {
-      console.error('❌ Error al obtener formularios:', error);
+      if (data?.success) setFormMarkers(data.forms || []);
+    } catch (err) {
+      console.error('❌ fetchFormMarkers', err);
     }
-  }, []);
+  }, [token, initToken]);
 
-  const fetchUserLocationsByDate = useCallback(async (userId: number,date:any) => {
+  const fetchUserLocationsByDate = useCallback(async (userId: number, date: string) => {
+    await initToken();
+    if (!token) return;
+
     try {
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) throw new Error('No auth token');
-
-      
-      const response = await axios.get<TrackingDataResponse>(
+      const { data } = await axios.get<TrackingDataResponse>(
         `${API_BASE}/locations?user_id=${userId}&date=${date}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      if (response.data?.success) {
-        const points: LocationPoint[] = response.data.data.map(item => ({
+       console.log(data)
+      if (data?.success) {
+       
+        const points: LocationPoint[] = data.data.map(item => ({
           latitude: item.latitude,
           longitude: item.longitude,
           timestamp: item.timestamp,
           type: item.type,
           formId: item.formId ?? null,
         }));
-
         setSelectedUserRoute(points);
       } else {
         setSelectedUserRoute([]);
       }
-    } catch (error) {
-      console.error('❌ Error al obtener ubicaciones por usuario:', error);
+    } catch (err) {
+      console.error('❌ fetchUserLocationsByDate', err);
       setSelectedUserRoute([]);
     }
-  }, []);
+  }, [token, initToken]);
 
   const refreshData = useCallback(async () => {
     setLoading(true);
     try {
-      await Promise.all([
-        fetchActiveUsers(),
-        fetchSessionRoutes(),
-     
-      ]);
+      await Promise.all([fetchActiveUsers(), fetchSessionRoutes()]);
     } finally {
       setLoading(false);
     }
@@ -183,17 +172,18 @@ export const useRealTimeTracking = (): UseRealTimeTrackingReturn => {
 
   // --- WEBSOCKET ---
   const connectWebSocket = useCallback(async () => {
+    await initToken();
+    if (!token) return;
+
     try {
       const echo = await getEcho();
       if (!echo) return;
 
-      console.log('🔗 Conectando a WebSocket en tiempo real...');
-
       const trackingChannel = echo.channel('tracking');
       trackingChannel.listen('.location.updated', (data: any) => {
         setUserLocations(prev => {
-          const existing = prev.find(u => u.id === data.userId);
-          const updated: UserLocation = {
+          const idx = prev.findIndex(u => u.id === data.userId);
+          const updatedUser: UserLocation = {
             id: data.userId,
             name: data.userName,
             latitude: data.latitude,
@@ -205,91 +195,94 @@ export const useRealTimeTracking = (): UseRealTimeTrackingReturn => {
             isOnline: true,
             lastActivity: data.timestamp,
           };
-          return existing
-            ? prev.map(u => (u.id === data.userId ? updated : u))
-            : [...prev, updated];
+          return idx >= 0
+            ? prev.map(u => (u.id === data.userId ? updatedUser : u))
+            : [...prev, updatedUser];
+        });
+
+        // --- actualizar ruta activa ---
+        setSessionRoutes(prev => {
+          let session = prev.find(s => s.userId === data.userId && s.isActive);
+          if (!session) {
+            session = {
+              id: data.sessionId || `${data.userId}_${Date.now()}`,
+              userId: data.userId,
+              userName: data.userName,
+              startTime: data.timestamp,
+              points: [],
+              isActive: true,
+              totalDistance: 0,
+            };
+            prev.push(session);
+          }
+          session.points.push({
+            latitude: data.latitude,
+            longitude: data.longitude,
+            timestamp: data.timestamp,
+            type: 'tracking',
+          });
+          return [...prev];
         });
       });
 
-      const operacionesChannel = echo.channel('operaciones');
-      operacionesChannel.listen('.formulario.creado', (data: any) => {
-        if (data.latitude && data.longitude) {
-          setFormMarkers(prev => [
-            ...prev,
-            {
-              id: data.id,
-              latitude: data.latitude,
-              longitude: data.longitude,
-              consecutivo: data.consecutivo,
-              empresa: data.empresa,
-              timestamp: data.created_at,
-              userName: data.user_name,
-              type: 'form_start',
-            },
-          ]);
-        }
-      });
-
-      operacionesChannel.listen('.formulario.actualizado', (data: any) => {
-        if (data.latitude && data.longitude) {
-          setFormMarkers(prev =>
-            prev.map(marker =>
-              marker.id === data.id
-                ? { ...marker, type: 'form_end' }
-                : marker
-            )
-          );
-        }
-      });
-
-      const asistenciasChannel = echo.channel('asistencias');
-      asistenciasChannel.listen('.asistencia.marcada', () => {
-        refreshData();
-      });
-
       setIsConnected(true);
-    } catch (error) {
-      console.error('❌ Error conectando WebSocket:', error);
+      console.log('✅ WebSocket conectado');
+    } catch (err) {
+      console.error('❌ connectWebSocket', err);
       setIsConnected(false);
     }
-  }, [refreshData]);
+  }, [token, initToken]);
 
   const disconnectWebSocket = useCallback(async () => {
     try {
       const echo = await getEcho();
-      if (echo) {
-        echo.leave('tracking');
-        echo.leave('operaciones');
-        echo.leave('asistencias');
-        console.log('📡 WebSocket desconectado');
-      }
+      echo?.leave('tracking');
       setIsConnected(false);
-    } catch (error) {
-      console.error('❌ Error desconectando WebSocket:', error);
+      console.log('📡 WebSocket desconectado');
+    } catch (err) {
+      console.error('❌ disconnectWebSocket', err);
     }
   }, []);
 
+  const startLiveTracking = useCallback(async (userId: number) => {
+    const echo = await getEcho();
+    if (!echo) return;
+
+    echo.leave(`user.${userId}`);
+    const channel = echo.channel(`user.${userId}`);
+    channel.listen('.location.updated', (data: any) => {
+      const newPoint: LocationPoint = {
+        latitude: data.latitude,
+        longitude: data.longitude,
+        timestamp: data.timestamp || new Date().toISOString(),
+        type: 'tracking',
+      };
+
+      setSelectedUserRoute(prev => [...prev, newPoint]);
+
+      setUserLocations(prev =>
+        prev.map(u =>
+          u.id === userId
+            ? { ...u, latitude: data.latitude, longitude: data.longitude, lastActivity: newPoint.timestamp, isOnline: true }
+            : u
+        )
+      );
+    });
+  }, []);
+
   // --- EFECTOS ---
-  useEffect(() => {
-    (async () => {
-      await refreshData();
-      await connectWebSocket();
-    })();
+useEffect(() => {
+  const init = async () => {
+    await refreshData();
+    await connectWebSocket();
+  };
 
-    return () => {
-      disconnectWebSocket();
-    };
-  }, [connectWebSocket, disconnectWebSocket, refreshData]);
+  init();
 
-  useEffect(() => {
-    if (!isConnected) {
-      const timer = setTimeout(() => {
-        console.log('🔄 Intentando reconectar WebSocket...');
-        connectWebSocket();
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [isConnected, connectWebSocket]);
+  return () => {
+    disconnectWebSocket();
+  };
+}, [refreshData, connectWebSocket, disconnectWebSocket]);
 
   return {
     userLocations,
@@ -302,7 +295,7 @@ export const useRealTimeTracking = (): UseRealTimeTrackingReturn => {
     connectWebSocket,
     disconnectWebSocket,
     fetchUserLocationsByDate,
-    fetchFormMarkers
-    
+    fetchFormMarkers,
+    startLiveTracking,
   };
 };

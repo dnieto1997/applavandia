@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "LaVianda - Operaciones",
-    "slug": "operacioneslaviandaapp",
+    "slug": "operaciones-lavandia",
     "scheme": "operaciones-lavianda-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -25,9 +25,9 @@
         "NSPhotoLibraryUsageDescription": "Esta app necesita acceso a la galería para seleccionar fotos de perfil."
       },
       "config": {
-        "googleMapsApiKey": "AIzaSyBrbXX5PmDsDY2O6COmRmevJj1R1IC1L7E"
+        "googleMapsApiKey": "AIzaSyDkvW0YqFTDRpRVZaUC9K2nemQbYswzVCs"
       },
-      "bundleIdentifier": "com.fabricciodev-21.operacioneslaviandaapp"
+      "bundleIdentifier": "com.fabricciodev_21.operacioneslaviandaapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -49,7 +49,7 @@
       "package": "com.fabricciodev_21.operacioneslaviandaapp",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyBrbXX5PmDsDY2O6COmRmevJj1R1IC1L7E"
+          "apiKey": "AIzaSyDkvW0YqFTDRpRVZaUC9K2nemQbYswzVCs"
         }
       }
     },
@@ -70,14 +70,15 @@
           "photosPermission": "Esta app necesita acceso a la galería para seleccionar fotos de perfil.",
           "cameraPermission": "Esta app necesita acceso a la cámara para tomar fotos de perfil."
         }
-      ]
+      ],
+      "expo-maps"
     ],
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "9715e6ce-e4b3-430a-a637-caee4a1ed165"
+        "projectId": "2bea2c68-a382-4088-8c42-9cc36d31c116"
       }
     },
-    "owner": "fabricciodev_21"
+    "owner": "dnieto6190"
   }
 }

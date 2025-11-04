@@ -26,6 +26,7 @@ import { subirFotoEvidencia, eliminarFotoEvidencia } from '../services/evidencia
 import SimpleSignaturePad from '../components/SimpleSignaturePad';
 import { getSecureItem } from '../utils/secureStorage';
 import { useLocation } from '@/contexts/LocationContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 const API_BASE = 'https://operaciones.lavianda.com.co/api';
@@ -82,10 +83,13 @@ interface FormData {
 
 export default function FormularioSupervisionSimple() {
   const router = useRouter();
-  const { user } = useAuth();
+  
+    const { user } = useAuth() as { user: any | null };
   const params = useLocalSearchParams();
   const signatureRef = useRef<any>(null);
   const { startTracking, startBackgroundTracking } = useLocation();
+   const insets = useSafeAreaInsets();
+
 
 
   const [loading, setLoading] = useState(false);
@@ -179,14 +183,16 @@ export default function FormularioSupervisionSimple() {
   const procesarFoto = async (area: string, uri: string) => {
     try {
       setLoading(true);
-      const token = await getSecureItem('auth_token');
+   
+      const token = user.token;
+      console.log('Token obtenido para subir foto:', token);
       
       if (!token) {
         Alert.alert('Error', 'No se encontró token de autenticación');
         return;
       }
 
-      const resultado = await subirFotoEvidencia(uri, token);
+      const resultado = await subirFotoEvidencia(uri, user.token);
       const urlFoto = typeof resultado === 'string' ? resultado : resultado.url || resultado.ruta || '';
       
       if (!urlFoto) {
@@ -297,7 +303,7 @@ export default function FormularioSupervisionSimple() {
       return;
     }
 
-    const token = await getSecureItem('auth_token');
+    const token = user.token
     if (!token) {
       Alert.alert('Error', 'No se encontró token de autenticación. Inicia sesión nuevamente.');
       router.replace('/login');
@@ -351,7 +357,6 @@ export default function FormularioSupervisionSimple() {
       }
     );
 
-    console.log('✅ Respuesta:', response.data);
 
     Alert.alert(
       'Éxito',
@@ -360,6 +365,7 @@ export default function FormularioSupervisionSimple() {
     );
 
   } catch (error) {
+    console.log(error)
     console.error('❌ Error enviando formulario:', error);
     if (axios.isAxiosError(error)) {
       Alert.alert('Error', error.response?.data?.message || 'Error al guardar el informe');
@@ -372,7 +378,13 @@ export default function FormularioSupervisionSimple() {
 };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView  style={[
+        styles.container,
+        {
+          paddingTop: Platform.OS === 'android' ? insets.top + 10 : insets.top,
+          paddingBottom: insets.bottom,
+        },
+      ]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={COLORS.surface} />
@@ -605,7 +617,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: COLORS.primary,
     padding: 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 16,
+    paddingTop: Platform.OS === 'ios' ? 50 : 16
   },
   backButton: {
     padding: 8,

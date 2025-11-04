@@ -122,7 +122,7 @@ export default function HomeScreen() {
                 description="Visualiza a todos los usuarios"
                 icon="map-outline"
                 color={COLORS.admin}
-                onPress={() => router.push('/(tabs)/admin-map-simple')}
+                onPress={() => router.push('/(tabs)/admin-map')}
               />
               <ActionCard
                 title="Gestión de Usuarios"
